@@ -91,7 +91,7 @@ class PoolTest extends TestCase
         $pool->addRepository($firstRepository);
         $pool->addRepository($secondRepository);
 
-        $this->assertEquals(array($firstPackage, $secondPackage, $thirdPackage), $pool->whatProvides('foo'));
+        $this->assertEquals(array($firstPackage, $thirdPackage), $pool->whatProvides('foo'));
     }
 
     public function testWhatProvidesPackageWithConstraint()

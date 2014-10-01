@@ -314,17 +314,60 @@ class Pool
         }
 
         if ($mustMatchName) {
-            return array_filter($matches, function ($match) use ($name) {
+            $ret = array_filter($matches, function ($match) use ($name) {
                 return $match->getName() == $name;
             });
+        } else {
+            // if a package with the required name exists, we ignore providers
+            if ($nameMatch) {
+                $ret = $matches;
+            } else {
+                $ret = array_merge($matches, $provideMatches);
+            }
         }
 
-        // if a package with the required name exists, we ignore providers
-        if ($nameMatch) {
-            return $matches;
+        $unique = array();
+
+        foreach ($ret as $match) {
+            $matchName = $match->getName();
+            $matchVersion = $match->getVersion();
+            $matchStability = $match->getStability();
+            $matchRef = $match->getSourceReference();
+            $found = false;
+            foreach ($unique as $foundIdx => $other) {
+                $otherName = $other->getName();
+                $otherVersion = $other->getVersion();
+                $otherStability = $other->getStability();
+                $otherRef = $other->getSourceReference();
+                if (
+                    $otherName === $matchName &&
+                    $otherVersion === $matchVersion &&
+                    $otherStability === $matchStability &&
+                    $otherRef === $matchRef
+                ) {
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $unique[] = $match;
+            } else {
+                if (isset($this->installedMap[$match])) {
+                    $unique[$foundIdx] = $match;
+                    continue;
+                }
+                if (isset($this->installedMap[$other])) {
+                    continue;
+                }
+                if ($this->getPriority($match->getRepository()) > $this->getPriority($other->getRepository())) {
+                    $unique[$foundIdx] = $match;
+                }
+            }
         }
 
-        return array_merge($matches, $provideMatches);
+        $ret = $unique;
+
+        return $ret;
     }
 
     public function literalToPackage($literal)
