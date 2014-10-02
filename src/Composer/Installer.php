@@ -764,7 +764,7 @@ class Installer
                     }
 
                     // find similar packages (name/version) in all repositories
-                    $matches = $pool->whatProvides($package->getName(), new VersionConstraint('=', $package->getVersion()));
+                    $matches = $pool->whatProvides($package->getName(), new VersionConstraint('=', $package->getVersion()), false, false);
                     foreach ($matches as $index => $match) {
                         // skip local packages
                         if (!in_array($match->getRepository(), $repositories, true)) {

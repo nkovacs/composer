@@ -157,14 +157,14 @@ class RuleSetGenerator
             $this->whitelistedMap[$package->getId()] = true;
 
             foreach ($package->getRequires() as $link) {
-                $possibleRequires = $this->pool->whatProvides($link->getTarget(), $link->getConstraint(), true);
+                $possibleRequires = $this->pool->whatProvides($link->getTarget(), $link->getConstraint(), true, false);
 
                 foreach ($possibleRequires as $require) {
                     $workQueue->enqueue($require);
                 }
             }
 
-            $obsoleteProviders = $this->pool->whatProvides($package->getName(), null, true);
+            $obsoleteProviders = $this->pool->whatProvides($package->getName(), null, true, false);
 
             foreach ($obsoleteProviders as $provider) {
                 if ($provider === $package) {
@@ -275,7 +275,7 @@ class RuleSetGenerator
 
     private function whitelistFromUpdatePackages(PackageInterface $package)
     {
-        $updates = $this->policy->findUpdatePackages($this->pool, $this->installedMap, $package, true);
+        $updates = $this->policy->findUpdatePackages($this->pool, $this->installedMap, $package, true, false);
 
         foreach ($updates as $update) {
             $this->whitelistFromPackage($update);
@@ -287,7 +287,7 @@ class RuleSetGenerator
         foreach ($this->jobs as $job) {
             switch ($job['cmd']) {
                 case 'install':
-                    $packages = $this->pool->whatProvides($job['packageName'], $job['constraint'], true);
+                    $packages = $this->pool->whatProvides($job['packageName'], $job['constraint'], true, false);
                     foreach ($packages as $package) {
                         $this->whitelistFromPackage($package);
                     }

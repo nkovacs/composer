@@ -42,11 +42,11 @@ class DefaultPolicy implements PolicyInterface
         return $constraint->matchSpecific($version, true);
     }
 
-    public function findUpdatePackages(Pool $pool, array $installedMap, PackageInterface $package, $mustMatchName = false)
+    public function findUpdatePackages(Pool $pool, array $installedMap, PackageInterface $package, $mustMatchName = false, $filterDuplicates = true)
     {
         $packages = array();
 
-        foreach ($pool->whatProvides($package->getName(), null, $mustMatchName) as $candidate) {
+        foreach ($pool->whatProvides($package->getName(), null, $mustMatchName, $filterDuplicates) as $candidate) {
             if ($candidate !== $package) {
                 $packages[] = $candidate;
             }

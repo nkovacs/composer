@@ -227,21 +227,73 @@ class Pool
     /**
      * Searches all packages providing the given package name and match the constraint
      *
-     * @param  string                  $name          The package name to be searched for
-     * @param  LinkConstraintInterface $constraint    A constraint that all returned
-     *                                                packages must match or null to return all
-     * @param  bool                    $mustMatchName Whether the name of returned packages
-     *                                                must match the given name
-     * @return PackageInterface[]                    A set of packages
+     * @param  string                  $name             The package name to be searched for
+     * @param  LinkConstraintInterface $constraint       A constraint that all returned
+     *                                                   packages must match or null to return all
+     * @param  bool                    $mustMatchName    Whether the name of returned packages
+     *                                                   must match the given name
+     * @param  bool                    $filterDuplicates Whether to filter duplicate packages from
+     *                                                   different repositories
+     * @return PackageInterface[]                        A set of packages
      */
-    public function whatProvides($name, LinkConstraintInterface $constraint = null, $mustMatchName = false)
+    public function whatProvides($name, LinkConstraintInterface $constraint = null, $mustMatchName = false, $filterDuplicates = true)
     {
         $key = ((int) $mustMatchName).$constraint;
-        if (isset($this->providerCache[$name][$key])) {
-            return $this->providerCache[$name][$key];
+        if (!isset($this->providerCache[$name][$key])) {
+            $this->providerCache[$name][$key] = $this->computeWhatProvides($name, $constraint, $mustMatchName);
         }
 
-        return $this->providerCache[$name][$key] = $this->computeWhatProvides($name, $constraint, $mustMatchName);
+        return $filterDuplicates ? $this->filterDuplicates($this->providerCache[$name][$key]) : $this->providerCache[$name][$key];
+    }
+
+    /**
+     * Remove duplicate packages from different repositories based on priority.
+     *
+     * @param PackageInterface[] $matches A set of packages
+     * @return PackageInterface[]         A set of packages with duplicates removed
+     */
+    private function filterDuplicates($matches)
+    {
+        $unique = array();
+
+        foreach ($matches as $match) {
+            $matchName = $match->getName();
+            $matchVersion = $match->getVersion();
+            $matchStability = $match->getStability();
+            $matchRef = $match->getSourceReference();
+            $found = false;
+            foreach ($unique as $foundIdx => $other) {
+                $otherName = $other->getName();
+                $otherVersion = $other->getVersion();
+                $otherStability = $other->getStability();
+                $otherRef = $other->getSourceReference();
+                if (
+                    $otherName === $matchName
+                    && $otherVersion === $matchVersion
+                    && $otherStability === $matchStability
+                    && $otherRef === $matchRef
+                ) {
+                    $found = true;
+                    break;
+                }
+            }
+            if (!$found) {
+                $unique[] = $match;
+            } else {
+                if (isset($this->installedMap[$match])) {
+                    $unique[$foundIdx] = $match;
+                    continue;
+                }
+                if (isset($this->installedMap[$other])) {
+                    continue;
+                }
+                if ($this->getPriority($match->getRepository()) > $this->getPriority($other->getRepository())) {
+                    $unique[$foundIdx] = $match;
+                }
+            }
+        }
+
+        return $unique;
     }
 
     /**
@@ -325,47 +377,6 @@ class Pool
                 $ret = array_merge($matches, $provideMatches);
             }
         }
-
-        $unique = array();
-
-        foreach ($ret as $match) {
-            $matchName = $match->getName();
-            $matchVersion = $match->getVersion();
-            $matchStability = $match->getStability();
-            $matchRef = $match->getSourceReference();
-            $found = false;
-            foreach ($unique as $foundIdx => $other) {
-                $otherName = $other->getName();
-                $otherVersion = $other->getVersion();
-                $otherStability = $other->getStability();
-                $otherRef = $other->getSourceReference();
-                if (
-                    $otherName === $matchName &&
-                    $otherVersion === $matchVersion &&
-                    $otherStability === $matchStability &&
-                    $otherRef === $matchRef
-                ) {
-                    $found = true;
-                    break;
-                }
-            }
-            if (!$found) {
-                $unique[] = $match;
-            } else {
-                if (isset($this->installedMap[$match])) {
-                    $unique[$foundIdx] = $match;
-                    continue;
-                }
-                if (isset($this->installedMap[$other])) {
-                    continue;
-                }
-                if ($this->getPriority($match->getRepository()) > $this->getPriority($other->getRepository())) {
-                    $unique[$foundIdx] = $match;
-                }
-            }
-        }
-
-        $ret = $unique;
 
         return $ret;
     }
